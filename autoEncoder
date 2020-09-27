@@ -1,0 +1,72 @@
+import torch
+import torchvision
+import torch.utils.data as Data
+import matplotlib.pyplot as plt
+import torch.nn as nn
+
+train_data = torchvision.datasets.MNIST(
+    root='MINIST',
+    train=True,
+    transform=torchvision.transforms.ToTensor(),
+    download=True
+)
+
+loader = Data.DataLoader(dataset=train_data, batch_size=64, shuffle=True)
+
+# plt.imshow(train_data.train_data[2].numpy(),cmap='Greys')
+# plt.title('%i'%train_data.train_labels[2])
+# plt.show()
+
+class AutoEncoder(nn.Module):
+    def __init__(self):
+        super(AutoEncoder, self).__init__();
+        self.encoder = nn.Sequential(
+            nn.Linear(28*28, 64),
+            nn.Tanh(),
+            nn.Linear(64, 32),
+            nn.Tanh(),
+            nn.Linear(32, 16),
+            nn.Tanh(),
+            nn.Linear(16, 3),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(3, 16),
+            nn.Tanh(),
+            nn.Linear(16, 32),
+            nn.Tanh(),
+            nn.Linear(32, 64),
+            nn.Tanh(),
+            nn.Linear(64, 28*28),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return encoded, decoded
+
+Coder = AutoEncoder()
+
+optimizer = torch.optim.Adam(Coder.parameters(), lr=0.01)
+loss_func = nn.MSELoss()
+
+for e in range(10):
+    for step,(x,y) in enumerate(loader):        
+        raw = x.view(-1, 28*28)
+        data_in = x.view(-1, 28*28)
+        encoded , decoded = Coder(data_in)
+        loss = loss_func(decoded, raw)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+# torch.save(Coder, "autoEncoder")
+
+_, result = Coder(train_data.train_data[0].view(-1,28*28).type(torch.FloatTensor)/255)
+
+im_result = result.view(28,28)
+plt.subplot(121)
+plt.imshow(train_data.train_data[0].numpy(),cmap='Greys')
+plt.subplot(122)
+plt.imshow(im_result.detach().numpy(), cmap='Greys')
+plt.show()
